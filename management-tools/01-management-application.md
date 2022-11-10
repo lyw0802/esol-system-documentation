@@ -35,3 +35,7 @@
 | Token 내장변수 | 인증완료시 추가 정보를 세션변수로 사용<br/>예) key : "APPID" , value : "TTS" |
 | Schedule Server List | Schedule Service의 실행 대상 서버 등록 |
 | Schedule Type | Schedule Service의 대상 선택<br/>Only DB Service(권장), DB Service and Java class|
+
+
+
+<span style="color=red"> test </
