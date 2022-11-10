@@ -1,4 +1,4 @@
-![Footer](https://capsule-render.vercel.app/api?type=waving&color=auto&height=500&text=ESOL_SYSTEM_v3.0_usage&section=footer)
+![Footer](https://capsule-render.vercel.app/api?type=waving&color=auto&height=200&width=200&text=ESOL_SYSTEM_v3.0_usage&section=footer)
 
 # ESOL SYSTEM v3.0 usage
 
