@@ -1,0 +1,557 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Script version="1.0" type="xscript5.1"><![CDATA[
+if(!nexacro._esol){
+	nexacro._esol = {
+		mainUrl : null
+		,
+		platformInfo : null
+		,
+		devCrossDomain : false
+		,
+		xmlHttp : null
+		,
+		isNexacroRuntimeEnv : null
+		,
+		constantNames : {
+				outputColumnParamName : "outputColumnInfo"
+			,	inputDataParamName : "esolInputData"
+			,	runtimeParamName : "isRuntime"
+			,	useEsolOutputData : "useEsolOutputData"
+			,	esolAllowCookieNames : [
+					"esoljwt" , "esoljwttime" , "JSESSIONID"
+				]
+			}
+		,
+		transactionCallback : function(frm){
+			this.setNRECookies(frm);
+			return JSON.parse(frm.ESOL_RESULT);
+		}
+		,
+		cookies : {}
+		,
+		logout : function(){
+			this.cookies = {};
+			for(var i=0;i<this.constantNames.esolAllowCookieNames.length;i++){
+				nexacro.removeCookieVariable(this.constantNames.esolAllowCookieNames[i]);
+			}
+			
+		}
+		,
+		getEsolParam : function(json){
+			var param="";
+			
+			if(json.thisForm){
+				if(json.thisForm.ESOL_RESULT===undefined)json.thisForm.ESOL_RESULT="";
+				if(json.thisForm.esoljwt===undefined)json.thisForm.esoljwt="";
+				if(json.thisForm.esoljwttime===undefined)json.thisForm.esoljwttime="";
+			}
+			
+			param+=this.constantNames.runtimeParamName+"="+this.isRuntime();
+			//var output = this.esolOutputColumnInfos(json[this.constantNames.outputColumnParamName]);
+			if(json[this.constantNames.outputColumnParamName]!==undefined
+				&& json[this.constantNames.outputColumnParamName]!==null){
+				param+=" " + this.constantNames.outputColumnParamName + "=" + encodeURIComponent(JSON.stringify(this.esolOutputColumnInfos(json[this.constantNames.outputColumnParamName])));
+			}
+			if(json[this.constantNames.inputDataParamName]!==undefined
+				&& json[this.constantNames.inputDataParamName]!==null){
+				param+=" " + this.esolInputDataParam(json[this.constantNames.inputDataParamName]);
+			}
+			if(json[this.constantNames.useEsolOutputData]!==undefined
+				&& json[this.constantNames.useEsolOutputData]!==null){
+				param+=" " + this.constantNames.useEsolOutputData+"="+json[this.constantNames.useEsolOutputData];
+			}
+			return param;
+		}
+		,
+		isRuntime : function(){
+			if(this.devCrossDomain){
+				return true;
+			}
+			if(this.isNexacroRuntimeEnv===null){
+				if(system.navigatorname == "nexacro"){
+					this.isNexacroRuntimeEnv=true;
+				}else{
+					this.isNexacroRuntimeEnv=false;
+				}
+				/*
+				if(nexacro._Browser != "Runtime"){
+					this.isNexacroRuntimeEnv=false;
+				}else{
+					this.isNexacroRuntimeEnv=true;
+				};
+				*/
+			}
+			return this.isNexacroRuntimeEnv;
+		}
+		,
+		esolInputDataParam : function(json){
+			var strInput="";
+			if(typeof(json) == "string"){
+				strInput = encodeURIComponent(json);
+			}else if(typeof(json) == "object"){
+				strInput = encodeURIComponent(JSON.stringify(json));
+			}
+			return this.constantNames.inputDataParamName+"=" + strInput;
+		}
+		,
+		esolOutputColumnInfo : function(ds){
+			if(typeof(ds) != "object"){
+				throw new Error("dataset undefined");
+			}
+			var column = [];
+			for(var j=0;j<ds.colcount;j++){
+				var colinfo = ds.getColumnInfo(j);
+				column.push(
+					{
+						id : colinfo.id
+					,	type : colinfo._p_type
+					,	size : colinfo._p_size
+					}
+				);
+			}
+			return column;
+		}
+		,
+		esolOutputColumnInfos : function(dsList){
+			var json = {};
+			for(var i=0;i<dsList.length;i++){
+				var strName = dsList[i].NAME;
+				var column = this.esolOutputColumnInfo(dsList[i].DS);
+				json[strName]={Column:column};
+			}
+			return json;
+		}
+		,
+		esolOutputColumnInfoParam : function(dsList){
+			return this.constantNames.outputColumnParamName + "=" + encodeURIComponent(JSON.stringify(this.esolOutputColumnInfos(dsList)));
+		}
+		,
+		setNRECookies : function(obj){
+			for(var i=0;i<this.constantNames.esolAllowCookieNames.length;i++){
+				if(obj[this.constantNames.esolAllowCookieNames[i]]!==undefined
+					&& obj[this.constantNames.esolAllowCookieNames[i]]!==null
+					&& obj[this.constantNames.esolAllowCookieNames[i]]!==""){
+					nexacro.setCookieVariable(this.constantNames.esolAllowCookieNames[i],obj[this.constantNames.esolAllowCookieNames[i]]);
+					this.cookies[this.constantNames.esolAllowCookieNames[i]]=obj[this.constantNames.esolAllowCookieNames[i]];
+				}
+			}
+		}
+		,
+		getNRECookies : function(){
+			var strCookies="";
+			var keys = Object.keys(this.cookies);
+			for(var i=0;i<keys.length;i++){
+				if(i>0){
+					strCookies+=" "+keys[i]+"="+this.cookies[keys[i]];
+				}else{
+					strCookies+=keys[i]+"="+this.cookies[keys[i]];
+				}
+			}
+			return strCookies;
+		}
+		,
+		setCookies : function(resHeader){
+			var strPre = "Set-Cookie: ";
+			var regBase = /Set-Cookie:((?:.)*?)[;]/g;
+			var match;
+			
+			while(match = regBase.exec(resHeader)){
+				for(var i=0;i<this.constantNames.esolAllowCookieNames.length;i++){
+					if(match[0].indexOf(strPre+this.constantNames.esolAllowCookieNames[i]+"=")===0){
+						var strTarget = match[0].substring(strPre.length+this.constantNames.esolAllowCookieNames[i].length+1 , match[0].length-1);
+						this.cookies[this.constantNames.esolAllowCookieNames[i]]=strTarget;
+						nexacro.setCookieVariable(this.constantNames.esolAllowCookieNames[i],strTarget);
+					}
+				}
+			}
+		}
+		,
+		getResponseContentType : function(resHeader){
+			var strPre = "Content-Type: ";
+			var regBase = /Content-Type:((?:.)*?)[;]/g;
+			var match;
+			var strContentType="";
+			while(match = regBase.exec(resHeader)){
+				strContentType = match[1].trim();
+				break;
+			}
+			return strContentType;
+		}
+		,
+		getCookies : function(){
+			var strCookies="";
+			var keys = Object.keys(this.cookies);
+			for(var i=0;i<keys.length;i++){
+				if(i>0){
+					strCookies+="; "+keys[i]+"="+this.cookies[keys[i]];
+				}else{
+					strCookies+=keys[i]+"="+this.cookies[keys[i]];
+				}
+			}
+			return strCookies;
+		}
+		,
+		send : function(url,input,callback,opt){
+			
+			if(this.xmlHttp===null){
+				this.xmlHttp = new XMLHttpRequest();
+			}
+			
+			var planUrl=url;
+			var xecure_url;								//최종 전송될 URL
+			var final_plan = input;
+			if(typeof input==='string'){
+				final_plan = input;
+			}else if(typeof input==='object'){
+				final_plan = JSON.stringify(input);
+			}
+			
+			this.xmlHttp.onreadystatechange = function(){
+				/*
+				0 (uninitialized) - (request가 초기화되지 않음) 
+				1 (loading) - (서버와의 연결이 성사됨) 
+				2 (loaded) - (서버가 request를 받음) 
+				3 (interactive) - (request(요청)을 처리하는 중) 
+				4 (complete) - (request에 대한 처리가 끝났으며 응답할 준비가 완료됨)
+				*/
+				if(this.readyState == 4){
+					if(this.status == 200){
+						var result = JSON.parse(this.responseText);
+						
+						if(nexacro._esol.isRuntime()){
+							nexacro._esol.setCookies(this.getAllResponseHeaders());
+						}
+						if(result.session=='N'){
+							alert('세션이 종료 되었거나 비정상적인 접근입니다.\n\n재로그인 하세요.\n');
+						}else{
+							if(result.success!==undefined && !result.success){
+								if(opt!=undefined && opt.errCallBack!==undefined){
+									opt.errCallBack(result,opt);
+								}else{
+									alert(result.message);
+								}
+							}else{
+								callback(result,opt);
+							}
+						}
+					}else{
+						alert('ERROR.\n\n서버응답코드 : '+this.status+'\n');
+					}
+				}
+			};
+			this.xmlHttp.open("POST", url , true);
+			this.xmlHttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+			if(this.isRuntime()){
+				var keys = Object.keys(this.cookies);
+				for(var i=0;i<keys.length;i++){
+					this.xmlHttp.setRequestHeader(keys[i], this.cookies[keys[i]]);
+				};
+			};
+			this.xmlHttp.send("data=" + this.escapeData(final_plan));
+		}
+		,
+		getService : function(url,input,callback,opt){
+			
+			if(this.xmlHttp===null){
+				this.xmlHttp = new XMLHttpRequest();
+			};
+			
+			var planUrl=url;
+			var xecure_url;								//최종 전송될 URL
+			var final_plan = input;
+			if(typeof input==='string'){
+				final_plan = input;
+			}else if(typeof input==='object'){
+				final_plan = JSON.stringify(input);
+			};
+			
+			this.xmlHttp.onreadystatechange = function(){
+				/*
+				0 (uninitialized) - (request가 초기화되지 않음) 
+				1 (loading) - (서버와의 연결이 성사됨) 
+				2 (loaded) - (서버가 request를 받음) 
+				3 (interactive) - (request(요청)을 처리하는 중) 
+				4 (complete) - (request에 대한 처리가 끝났으며 응답할 준비가 완료됨)
+				*/
+				if(this.readyState == 4){
+					if(this.status == 200){
+						var result = JSON.parse(this.responseText);
+						
+						if(nexacro._esol.isRuntime()){
+							nexacro._esol.setCookies(this.getAllResponseHeaders());
+						}
+						if(result.session=='N'){
+							alert('세션이 종료 되었거나 비정상적인 접근입니다.\n\n재로그인 하세요.\n');
+						}else{
+							callback(result,opt);
+						}
+					}else{
+						alert('ERROR.\n\n서버응답코드 : '+this.status+'\n');
+					}
+				}
+			};
+			this.xmlHttp.open("POST", url , true);
+			this.xmlHttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+			if(this.isRuntime()){
+				var keys = Object.keys(this.cookies);
+				for(var i=0;i<keys.length;i++){
+					this.xmlHttp.setRequestHeader(keys[i], this.cookies[keys[i]]);
+				};
+			};
+			this.xmlHttp.send("data=" + this.escapeData(final_plan));
+		}
+		,
+		
+		sendMgr : function(url,input,callback,opt){
+			
+			if(this.xmlHttp==null){
+				this.xmlHttp = new XMLHttpRequest();
+			};
+			
+			var planUrl=url;
+			var xecure_url;								//최종 전송될 URL
+			var final_plan = input;
+			if(typeof input==='string'){
+				final_plan = input;
+			}else if(typeof input==='object'){
+				final_plan = JSON.stringify(input);
+			};
+			
+			this.xmlHttp.onreadystatechange = function(){
+				/*
+				0 (uninitialized) - (request가 초기화되지 않음) 
+				1 (loading) - (서버와의 연결이 성사됨) 
+				2 (loaded) - (서버가 request를 받음) 
+				3 (interactive) - (request(요청)을 처리하는 중) 
+				4 (complete) - (request에 대한 처리가 끝났으며 응답할 준비가 완료됨)
+				*/
+				if(this.readyState == 4){
+					if(this.status == 200){
+						var result = JSON.parse(this.responseText);
+						if(nexacro._esol.isRuntime()){
+							nexacro._esol.setCookies(this.getAllResponseHeaders());
+						};
+						
+						if(result.session=='N'){
+							alert('세션이 종료 되었거나 비정상적인 접근입니다.\n\n재로그인 하세요.\n');
+						}else{
+							if(result.success!==undefined && !result.success){
+								if(opt!=undefined && opt.errCallBack!=undefined){
+									opt.errCallBack(result,opt);
+								}else{
+									alert(result.message);
+								}
+							}else{
+								callback(result,opt);
+							}
+						}
+					}else{
+						alert('ERROR.\n\n서버응답코드 : '+this.status+'\n');
+					}
+				};
+			};
+			this.xmlHttp.open("POST", url , true);
+			this.xmlHttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+			if(this.isRuntime()){
+				var keys = Object.keys(this.cookies);
+				for(var i=0;i<keys.length;i++){
+					this.xmlHttp.setRequestHeader(keys[i], this.cookies[keys[i]]);
+				};
+				/*
+				var strCookies = this.getCookies();
+				if(strCookies!=""){
+					try{
+						this.xmlHttp.setRequestHeader("Cookie", strCookies);
+					}catch(e){
+						var keys = Object.keys(this.cookies);
+						for(var i=0;i<keys.length;i++){
+							this.xmlHttp.setRequestHeader(keys[i], this.cookies[keys[i]]);
+						};
+					}
+				};
+				*/
+			};
+			
+			/*
+			this.xmlHttp.setRequestHeader("esoljwt", this.ESOL_JWT);
+			this.xmlHttp.setRequestHeader("esoljwttime", this.ESOL_JWT_TIME);
+			*/
+			this.xmlHttp.send(final_plan);
+		}
+		,
+		escapeData:function(url){
+			var i;
+			var ch;
+			var out = '';
+			var url_string = '';
+
+			url_string = String(url);
+
+			for (i=0; i<url_string.length; i++) {
+				ch = url_string.charAt(i);
+				if (ch == ' ')		out += '%20';
+				else if (ch == '%')	out += '%25';
+				else if (ch == '&') out += '%26';
+				else if (ch == '+') out += '%2B';
+				else if (ch == '=') out += '%3D';
+				else if (ch == '?') out += '%3F';
+				else				out += ch;
+			}
+			return out;
+			
+		}
+		,
+		loadEsolData : function(ds,json,outputKey){
+			if(ds===undefined || ds === null){
+				alert("Dataset undefined or null");
+				return;
+			}
+			if(json===undefined || json===null || json.output===undefined || json.output===null
+				|| json.output[outputKey]===undefined || json.output[outputKey]===null
+				){
+				alert("Esol Data undefined or null");
+				return;
+			}
+			
+			var cols = this.esolOutputColumnInfo(ds);
+			var jsonData = {
+				id : outputKey
+			,	ColumnInfo : {
+					Column : cols
+				}
+			,	Rows : json.output[outputKey].list
+			};
+			ds.loadJSON(JSON.stringify(jsonData));
+		}
+		,
+		loadDsLoad : function(ds,arr){
+			if(ds==undefined || ds == null){
+				alert("Dataset undefined or null");
+				return;
+			};
+			var cols = this.esolOutputColumnInfo(ds);
+			var jsonData = {
+				id : ds.id
+			,	ColumnInfo : {
+					Column : cols
+				}
+			,	Rows : arr
+			};
+			ds.loadJSON(JSON.stringify(jsonData),true);
+		}
+		,
+		getDatasetDataList : function(ds){
+			if(ds.colcount==0){
+				return [{}];
+			};
+			var cols = this.esolOutputColumnInfo(ds);
+			var json = JSON.parse(ds.saveJSON());
+			var list = json.Rows;
+			for(var i=0;i<list.length;i++){
+				for(var c=0;c<cols.length;c++){
+					if(list[i][cols[c].id]==undefined){
+						list[i][cols[c].id]="";
+					};
+				};
+			};
+			return list;
+		}
+		,
+		checkDataset : function(ds,grid,data,opt){
+			if(data==undefined || data.length==0){
+				return;
+			};
+			var cols = this.esolOutputColumnInfo(ds);
+			var keys = Object.keys(data[0]);
+			for(var i=0;i<keys.length;i++){
+				var existCol=false;
+				for(var c=0;c<cols.length;c++){
+					if(cols[c].id == keys[i]){
+						existCol=true;
+						break;
+					};
+				};
+				if(!existCol){
+					ds.addColumn(keys[i],"STRING",256);
+				};
+			};
+			
+			if(cols.length==0){
+				var strFormat = this.getGridFormat(keys,true);
+				grid.formats = strFormat;
+			};
+			
+			/*
+			for(var r=0;r<rowkeys.length;r++){
+				ds.addColumn(rowkeys[r],"STRING",256);
+			};
+			*/
+		}
+		,
+		getGridFormat : function(keys,readOnly){
+			var isReadOnly = false;
+			if(readOnly!==undefined && readOnly==true){
+				isReadOnly=true;
+			};
+			var strColumns = []; strColumns.push('\t\t<Columns>\n');
+			var strRows = '\t\t<Rows>\n'
+						+ '\t\t\t<Row size="32" band="head"/>\n'
+						+ '\t\t\t<Row size="32"/>\n'
+						+ '\t\t</Rows>\n'
+						;
+			
+			var strBandHead = []; strBandHead.push('\t\t<Band id="head">\n');
+			var strBandBody = []; strBandBody.push('\t\t<Band id="body">\n');
+			
+			var strInputType = ' displaytype="editcontrol" edittype="text" ';
+			if(isReadOnly){
+				strInputType = ' displaytype="text" ';
+			};
+			
+			for(var i=0;i<keys.length;i++){
+				strColumns.push('\t\t\t<Column size="100"/>\n');
+				if(i==0){
+					strBandHead.push('\t\t\t<Cell text="'+keys[i]+'"/>\n');
+					strBandBody.push('\t\t\t<Cell text="bind:'+keys[i]+'" '+strInputType+'/>\n');
+				}else{
+					strBandHead.push('\t\t\t<Cell col="'+i+'" text="'+keys[i]+'"/>\n');
+					strBandBody.push('\t\t\t<Cell col="'+i+'" text="bind:'+keys[i]+'" '+strInputType+'/>\n');
+				};
+			};
+			
+			
+			strColumns.push('\t\t</Columns>\n');
+			strBandHead.push('\t\t</Band>\n');
+			strBandBody.push('\t\t</Band>\n');
+			
+			var strFormat 	= '<Formats>\n'
+							+ '\t<Format id="default">\n'
+							;
+			for(var i=0;i<strColumns.length;i++){
+				strFormat+=strColumns[i];
+			};
+			strFormat+=strRows;
+			for(var i=0;i<strBandHead.length;i++){
+				strFormat+=strBandHead[i];
+			};
+			for(var i=0;i<strBandBody.length;i++){
+				strFormat+=strBandBody[i];
+			};
+			strFormat+='\t</Format>\n';
+			strFormat+='</Formats>\n';
+			return strFormat;
+		}
+		,
+		Date : {
+			getYmd : function(date){
+				var sToday = date.getFullYear().toString();
+				sToday += Right("0" + (date.getMonth() + 1), 2);
+				sToday += Right("0" + date.getDate(), 2);
+				return sToday;
+			}
+		}
+	};
+};
+
+
+]]></Script>
